@@ -1,0 +1,15 @@
+{
+  "name": "magazyn-api",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "typecheck": "tsc"
+  },
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}
