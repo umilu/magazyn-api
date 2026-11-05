@@ -18,6 +18,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/products') {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify(products));
+
         return;
     }
 
@@ -140,8 +141,7 @@ const server = http.createServer((req, res) => {
                 if (
                     products.some((p) => {
                         return (
-                            input.name.trim().toLowerCase() === p.name.toLowerCase() &&
-                            p.id !== id
+                            input.name.trim().toLowerCase() === p.name.toLowerCase() && p.id !== id
                         );
                     })
                 ) {
@@ -166,6 +166,27 @@ const server = http.createServer((req, res) => {
         });
         return;
     }
+    if (req.method === 'DELETE' && req.url?.startsWith('/products/')) {
+        const id = Number(req.url.split('/')[2]);
+
+        if (!(Number.isInteger(id) && id > 0)) {
+            res.writeHead(400, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid id' }));
+            return;
+        }
+        const index = products.findIndex((p) => id === p.id);
+
+        if (index === -1) {
+            res.writeHead(404, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Product not found' }));
+            return;
+        }
+        products.splice(index, 1);
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
 });
