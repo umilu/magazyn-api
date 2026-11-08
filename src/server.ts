@@ -14,11 +14,14 @@ const products: Product[] = [
 
 let nextId = 4;
 
+function sendJson(res: http.ServerResponse, status: number, data: unknown) {
+    res.writeHead(status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(data));
+}
+
 const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/products') {
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(products));
-
+        sendJson(res, 200, products);
         return;
     }
 
@@ -26,21 +29,18 @@ const server = http.createServer((req, res) => {
         const id = Number(req.url.split('/')[2]);
 
         if (!(Number.isInteger(id) && id > 0)) {
-            res.writeHead(400, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid id' }));
+            sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
 
         const product = products.find((p) => p.id === id);
 
         if (product) {
-            res.writeHead(200, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(product));
+            sendJson(res, 200, product);
             return;
         }
         if (!product) {
-            res.writeHead(404, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Product not found' }));
+            sendJson(res, 404, { error: 'Product not found' });
             return;
         }
     }
@@ -58,28 +58,23 @@ const server = http.createServer((req, res) => {
             try {
                 input = JSON.parse(body);
             } catch {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                sendJson(res, 400, { error: 'Invalid JSON' });
                 return;
             }
             if (typeof input !== 'object' || input === null) {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Body must be an object' }));
+                sendJson(res, 400, { error: 'Body must be an object' });
                 return;
             }
             if (typeof input.name !== 'string' || input.name.trim() === '') {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid name' }));
+                sendJson(res, 400, { error: 'Invalid name' });
                 return;
             }
             if (!Number.isInteger(input.quantity) || input.quantity < 0) {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid quantity' }));
+                sendJson(res, 400, { error: 'Invalid quantity' });
                 return;
             }
             if (products.some((p) => input.name.trim().toLowerCase() === p.name.toLowerCase())) {
-                res.writeHead(409, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Product already exists' }));
+                sendJson(res, 409, { error: 'Product already exists' });
                 return;
             }
 
@@ -89,8 +84,7 @@ const server = http.createServer((req, res) => {
                 quantity: input.quantity,
             };
             products.push(newProduct);
-            res.writeHead(201, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(newProduct));
+            sendJson(res, 201, newProduct);
         });
         return;
     }
@@ -99,15 +93,13 @@ const server = http.createServer((req, res) => {
         const id = Number(req.url.split('/')[2]);
 
         if (!(Number.isInteger(id) && id > 0)) {
-            res.writeHead(400, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid id' }));
+            sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
         const product = products.find((p) => p.id === id);
 
         if (!product) {
-            res.writeHead(404, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Product not found' }));
+            sendJson(res, 404, { error: 'Product not found' });
             return;
         }
         const newProduct: Product = { ...product };
@@ -123,19 +115,16 @@ const server = http.createServer((req, res) => {
             try {
                 input = JSON.parse(body);
             } catch {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                sendJson(res, 400, { error: 'Invalid JSON' });
                 return;
             }
             if (typeof input !== 'object' || input === null) {
-                res.writeHead(400, { 'content-type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Body must be an object' }));
+                sendJson(res, 400, { error: 'Body must be an object' });
                 return;
             }
             if ('name' in input) {
                 if (typeof input.name !== 'string' || input.name.trim() === '') {
-                    res.writeHead(400, { 'content-type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid name' }));
+                    sendJson(res, 400, { error: 'Invalid name' });
                     return;
                 }
                 if (
@@ -145,24 +134,21 @@ const server = http.createServer((req, res) => {
                         );
                     })
                 ) {
-                    res.writeHead(409, { 'content-type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Product already exists' }));
+                    sendJson(res, 409, { error: 'Product already exists' });
                     return;
                 }
                 newProduct.name = input.name.trim();
             }
             if ('quantity' in input) {
                 if (!Number.isInteger(input.quantity) || input.quantity < 0) {
-                    res.writeHead(400, { 'content-type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid quantity' }));
+                    sendJson(res, 400, { error: 'Invalid quantity' });
                     return;
                 }
                 newProduct.quantity = input.quantity;
             }
             const index = products.findIndex((p) => p.id === id);
             products[index] = newProduct;
-            res.writeHead(200, { 'content-type': 'application/json' });
-            res.end(JSON.stringify(newProduct));
+            sendJson(res, 200, newProduct);
         });
         return;
     }
@@ -170,15 +156,13 @@ const server = http.createServer((req, res) => {
         const id = Number(req.url.split('/')[2]);
 
         if (!(Number.isInteger(id) && id > 0)) {
-            res.writeHead(400, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid id' }));
+            sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
         const index = products.findIndex((p) => id === p.id);
 
         if (index === -1) {
-            res.writeHead(404, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Product not found' }));
+            sendJson(res, 404, { error: 'Product not found' });
             return;
         }
         products.splice(index, 1);
@@ -187,8 +171,7 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    res.writeHead(404, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+    sendJson(res, 404, { error: 'Not found' });
 });
 
 server.listen(4000, 'localhost', () => {
