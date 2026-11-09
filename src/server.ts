@@ -19,6 +19,17 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown) {
     res.end(JSON.stringify(data));
 }
 
+function readBody(req: http.IncomingMessage, onDone: (body: string) => void) {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk) => {
+        chunks.push(chunk);
+    });
+    req.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        onDone(body);
+    });
+}
+
 const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/products') {
         sendJson(res, 200, products);
@@ -46,14 +57,7 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/products') {
-        const chunks: Buffer[] = [];
-
-        req.on('data', (chunk) => {
-            chunks.push(chunk);
-        });
-
-        req.on('end', () => {
-            const body = Buffer.concat(chunks).toString();
+        readBody(req, (body) => {
             let input;
             try {
                 input = JSON.parse(body);
@@ -96,21 +100,17 @@ const server = http.createServer((req, res) => {
             sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
+
         const product = products.find((p) => p.id === id);
 
         if (!product) {
             sendJson(res, 404, { error: 'Product not found' });
             return;
         }
-        const newProduct: Product = { ...product };
-        const chunks: Buffer[] = [];
 
-        req.on('data', (chunk) => {
-            chunks.push(chunk);
-        });
+        readBody(req, (body) => {
+            const newProduct: Product = { ...product };
 
-        req.on('end', () => {
-            const body = Buffer.concat(chunks).toString();
             let input;
             try {
                 input = JSON.parse(body);
@@ -139,6 +139,7 @@ const server = http.createServer((req, res) => {
                 }
                 newProduct.name = input.name.trim();
             }
+
             if ('quantity' in input) {
                 if (!Number.isInteger(input.quantity) || input.quantity < 0) {
                     sendJson(res, 400, { error: 'Invalid quantity' });
@@ -146,6 +147,7 @@ const server = http.createServer((req, res) => {
                 }
                 newProduct.quantity = input.quantity;
             }
+
             const index = products.findIndex((p) => p.id === id);
             products[index] = newProduct;
             sendJson(res, 200, newProduct);
