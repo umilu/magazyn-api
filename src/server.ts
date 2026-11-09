@@ -19,14 +19,29 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown) {
     res.end(JSON.stringify(data));
 }
 
-function readBody(req: http.IncomingMessage, onDone: (body: string) => void) {
+function readJsonBody(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    onDone: (input: any) => void,
+) {
     const chunks: Buffer[] = [];
     req.on('data', (chunk) => {
         chunks.push(chunk);
     });
     req.on('end', () => {
         const body = Buffer.concat(chunks).toString();
-        onDone(body);
+        let input;
+        try {
+            input = JSON.parse(body);
+        } catch {
+            sendJson(res, 400, { error: 'Invalid JSON' });
+            return;
+        }
+        if (typeof input !== 'object' || input === null) {
+            sendJson(res, 400, { error: 'Body must be an object' });
+            return;
+        }
+        onDone(input);
     });
 }
 
@@ -57,18 +72,7 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/products') {
-        readBody(req, (body) => {
-            let input;
-            try {
-                input = JSON.parse(body);
-            } catch {
-                sendJson(res, 400, { error: 'Invalid JSON' });
-                return;
-            }
-            if (typeof input !== 'object' || input === null) {
-                sendJson(res, 400, { error: 'Body must be an object' });
-                return;
-            }
+        readJsonBody(req, res, (input) => {
             if (typeof input.name !== 'string' || input.name.trim() === '') {
                 sendJson(res, 400, { error: 'Invalid name' });
                 return;
@@ -108,20 +112,9 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        readBody(req, (body) => {
+        readJsonBody(req, res, (input) => {
             const newProduct: Product = { ...product };
 
-            let input;
-            try {
-                input = JSON.parse(body);
-            } catch {
-                sendJson(res, 400, { error: 'Invalid JSON' });
-                return;
-            }
-            if (typeof input !== 'object' || input === null) {
-                sendJson(res, 400, { error: 'Body must be an object' });
-                return;
-            }
             if ('name' in input) {
                 if (typeof input.name !== 'string' || input.name.trim() === '') {
                     sendJson(res, 400, { error: 'Invalid name' });
