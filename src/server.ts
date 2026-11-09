@@ -45,6 +45,15 @@ function readJsonBody(
     });
 }
 
+function parseId(url: string) {
+    const id = Number(url.split('/')[2]);
+    if (Number.isInteger(id) && id > 0) {
+        return id;
+    } else {
+        return null;
+    }
+}
+
 const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/products') {
         sendJson(res, 200, products);
@@ -52,9 +61,9 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'GET' && req.url?.startsWith('/products/')) {
-        const id = Number(req.url.split('/')[2]);
+        const id = parseId(req.url);
 
-        if (!(Number.isInteger(id) && id > 0)) {
+        if (id === null) {
             sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
@@ -98,9 +107,9 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'PATCH' && req.url?.startsWith('/products/')) {
-        const id = Number(req.url.split('/')[2]);
+        const id = parseId(req.url);
 
-        if (!(Number.isInteger(id) && id > 0)) {
+        if (id === null) {
             sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
@@ -148,12 +157,13 @@ const server = http.createServer((req, res) => {
         return;
     }
     if (req.method === 'DELETE' && req.url?.startsWith('/products/')) {
-        const id = Number(req.url.split('/')[2]);
+        const id = parseId(req.url);
 
-        if (!(Number.isInteger(id) && id > 0)) {
+        if (id === null) {
             sendJson(res, 400, { error: 'Invalid id' });
             return;
         }
+
         const index = products.findIndex((p) => id === p.id);
 
         if (index === -1) {
