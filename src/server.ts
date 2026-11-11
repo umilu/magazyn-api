@@ -1,58 +1,6 @@
 import http from 'node:http';
-
-type Product = {
-    id: number;
-    name: string;
-    quantity: number;
-};
-
-const products: Product[] = [
-    { id: 1, name: 'Krzesło', quantity: 5 },
-    { id: 2, name: 'Stół', quantity: 15 },
-    { id: 3, name: 'Kanapa', quantity: 50 },
-];
-
-let nextId = 4;
-
-function sendJson(res: http.ServerResponse, status: number, data: unknown) {
-    res.writeHead(status, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(data));
-}
-
-function readJsonBody(
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-    onDone: (input: any) => void,
-) {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk) => {
-        chunks.push(chunk);
-    });
-    req.on('end', () => {
-        const body = Buffer.concat(chunks).toString();
-        let input;
-        try {
-            input = JSON.parse(body);
-        } catch {
-            sendJson(res, 400, { error: 'Invalid JSON' });
-            return;
-        }
-        if (typeof input !== 'object' || input === null) {
-            sendJson(res, 400, { error: 'Body must be an object' });
-            return;
-        }
-        onDone(input);
-    });
-}
-
-function parseId(url: string) {
-    const id = Number(url.split('/')[2]);
-    if (Number.isInteger(id) && id > 0) {
-        return id;
-    } else {
-        return null;
-    }
-}
+import { products, getNextId, type Product } from './products.ts';
+import { readJsonBody, sendJson, parseId } from './http-utils.ts';
 
 const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/products') {
@@ -96,7 +44,7 @@ const server = http.createServer((req, res) => {
             }
 
             const newProduct: Product = {
-                id: nextId++,
+                id: getNextId(),
                 name: input.name.trim(),
                 quantity: input.quantity,
             };
