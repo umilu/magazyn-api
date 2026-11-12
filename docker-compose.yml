@@ -1,0 +1,20 @@
+# Lokalna baza danych. Hasło tylko do pracy lokalnej.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: magazyn
+      POSTGRES_PASSWORD: magazyn
+      POSTGRES_DB: magazyn_api
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U magazyn -d magazyn_api']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:

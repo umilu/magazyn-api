@@ -2,14 +2,19 @@
   "name": "magazyn-api",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node --watch src/server.ts",
-    "start": "node src/server.ts",
-    "typecheck": "tsc"
+    "dev": "node --env-file=.env --watch src/server.ts",
+    "start": "node --env-file=.env src/server.ts",
+    "typecheck": "tsc",
+    "db": "docker compose exec db psql -U magazyn -d magazyn_api"
   },
   "type": "module",
   "private": true,
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }
