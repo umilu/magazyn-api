@@ -7,29 +7,20 @@ import {
     getProducts,
     updateProduct,
 } from './products-routes.ts';
+import { matchPath, type Route } from './router.ts';
+
+const routes: Route[] = [
+    { method: 'GET', path: '/products', handler: getProducts },
+    { method: 'GET', path: '/products/:id', handler: getProduct },
+    { method: 'POST', path: '/products', handler: createProduct },
+    { method: 'PATCH', path: '/products/:id', handler: updateProduct },
+    { method: 'DELETE', path: '/products/:id', handler: deleteProduct },
+];
 
 const server = http.createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/products') {
-        getProducts(req, res);
-        return;
-    }
-
-    if (req.method === 'GET' && req.url?.startsWith('/products/')) {
-        getProduct(req, res);
-        return;
-    }
-
-    if (req.method === 'POST' && req.url === '/products') {
-        createProduct(req, res);
-        return;
-    }
-
-    if (req.method === 'PATCH' && req.url?.startsWith('/products/')) {
-        updateProduct(req, res);
-        return;
-    }
-    if (req.method === 'DELETE' && req.url?.startsWith('/products/')) {
-        deleteProduct(req, res);
+    const route = routes.find((r) => r.method === req.method && matchPath(r.path, req.url ?? ''));
+    if (route) {
+        route.handler(req, res);
         return;
     }
 
