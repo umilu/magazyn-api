@@ -5,7 +5,8 @@
     "dev": "node --env-file=.env --watch src/server.ts",
     "start": "node --env-file=.env src/server.ts",
     "typecheck": "tsc",
-    "db": "docker compose exec db psql -U magazyn -d magazyn_api"
+    "db": "docker compose exec db psql -U magazyn -d magazyn_api",
+    "db:schema": "docker compose exec -T db psql -U magazyn -d magazyn_api -v ON_ERROR_STOP=1 < db/schema.sql"
   },
   "type": "module",
   "private": true,
