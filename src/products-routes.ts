@@ -1,9 +1,11 @@
 import { parseId, readJsonBody, sendJson } from './http-utils.ts';
 import { getNextId, products, type Product } from './products.ts';
 import http from 'node:http';
+import { pool } from './db.ts';
 
-export function getProducts(req: http.IncomingMessage, res: http.ServerResponse) {
-    sendJson(res, 200, products);
+export async function getProducts(req: http.IncomingMessage, res: http.ServerResponse) {
+    const result = await pool.query('SELECT id, name, quantity FROM products ORDER BY id');
+    sendJson(res, 200, result.rows);
 }
 
 export function getProduct(req: http.IncomingMessage, res: http.ServerResponse) {

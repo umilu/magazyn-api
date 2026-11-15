@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:18-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: magazyn
       POSTGRES_PASSWORD: magazyn

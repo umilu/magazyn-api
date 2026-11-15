@@ -1,6 +1,6 @@
 import http from 'node:http';
 
-type Handler = (req: http.IncomingMessage, res: http.ServerResponse) => void;
+type Handler = (req: http.IncomingMessage, res: http.ServerResponse) => void | Promise<void>;
 
 export type Route = {
     method: string;

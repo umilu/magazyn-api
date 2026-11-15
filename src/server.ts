@@ -17,10 +17,16 @@ const routes: Route[] = [
     { method: 'DELETE', path: '/products/:id', handler: deleteProduct },
 ];
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     const route = routes.find((r) => r.method === req.method && matchPath(r.path, req.url ?? ''));
+
     if (route) {
-        route.handler(req, res);
+        try {
+            await route.handler(req, res);
+        } catch (error) {
+            console.error(error);
+            sendJson(res, 500, { error: 'Internal server error' });
+        }
         return;
     }
 
