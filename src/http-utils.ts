@@ -5,29 +5,29 @@ export function sendJson(res: http.ServerResponse, status: number, data: unknown
     res.end(JSON.stringify(data));
 }
 
-export function readJsonBody(
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-    onDone: (input: any) => void,
-) {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk) => {
-        chunks.push(chunk);
-    });
-    req.on('end', () => {
-        const body = Buffer.concat(chunks).toString();
-        let input;
-        try {
-            input = JSON.parse(body);
-        } catch {
-            sendJson(res, 400, { error: 'Invalid JSON' });
-            return;
-        }
-        if (typeof input !== 'object' || input === null) {
-            sendJson(res, 400, { error: 'Body must be an object' });
-            return;
-        }
-        onDone(input);
+export function readJsonBody(req: http.IncomingMessage, res: http.ServerResponse): Promise<any> {
+    return new Promise((resolve) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk) => {
+            chunks.push(chunk);
+        });
+        req.on('end', () => {
+            const body = Buffer.concat(chunks).toString();
+            let input;
+            try {
+                input = JSON.parse(body);
+            } catch {
+                sendJson(res, 400, { error: 'Invalid JSON' });
+                resolve(null);
+                return;
+            }
+            if (typeof input !== 'object' || input === null) {
+                sendJson(res, 400, { error: 'Body must be an object' });
+                resolve(null);
+                return;
+            }
+            resolve(input);
+        });
     });
 }
 

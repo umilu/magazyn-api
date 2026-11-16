@@ -1,5 +1,4 @@
 import { parseId, readJsonBody, sendJson } from './http-utils.ts';
-import { getNextId, products, type Product } from './products.ts';
 import http from 'node:http';
 import { pool } from './db.ts';
 
@@ -8,7 +7,7 @@ export async function getProducts(req: http.IncomingMessage, res: http.ServerRes
     sendJson(res, 200, result.rows);
 }
 
-export function getProduct(req: http.IncomingMessage, res: http.ServerResponse) {
+export async function getProduct(req: http.IncomingMessage, res: http.ServerResponse) {
     const id = parseId(req.url ?? '/');
 
     if (id === null) {
@@ -16,43 +15,102 @@ export function getProduct(req: http.IncomingMessage, res: http.ServerResponse) 
         return;
     }
 
-    const product = products.find((p) => p.id === id);
+    const result = await pool.query('SELECT id, name, quantity FROM products WHERE id = $1', [id]);
 
-    if (product) {
-        sendJson(res, 200, product);
+    if (result.rows[0]) {
+        sendJson(res, 200, result.rows[0]);
         return;
     }
-    if (!product) {
-        sendJson(res, 404, { error: 'Product not found' });
+
+    sendJson(res, 404, { error: 'Product not found' });
+}
+
+export async function createProduct(req: http.IncomingMessage, res: http.ServerResponse) {
+    const input = await readJsonBody(req, res);
+    if (input === null) {
+        return;
+    }
+    if (typeof input.name !== 'string' || input.name.trim() === '') {
+        sendJson(res, 400, { error: 'Invalid name' });
+        return;
+    }
+    if (!Number.isInteger(input.quantity) || input.quantity < 0) {
+        sendJson(res, 400, { error: 'Invalid quantity' });
+        return;
+    }
+
+    try {
+        const result = await pool.query(
+            'INSERT INTO products (name, quantity) VALUES ($1, $2) RETURNING id, name, quantity',
+            [input.name.trim(), input.quantity],
+        );
+
+        sendJson(res, 201, result.rows[0]);
+    } catch (error: any) {
+        if (error.code === '23505') {
+            sendJson(res, 409, { error: 'Product already exists' });
+            return;
+        }
+        throw error;
     }
 }
 
-export function createProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    readJsonBody(req, res, (input) => {
+export async function updateProduct(req: http.IncomingMessage, res: http.ServerResponse) {
+    const id = parseId(req.url ?? '/');
+
+    if (id === null) {
+        sendJson(res, 400, { error: 'Invalid id' });
+        return;
+    }
+
+    const input = await readJsonBody(req, res);
+
+    if (input === null) {
+        return;
+    }
+
+    if ('name' in input) {
         if (typeof input.name !== 'string' || input.name.trim() === '') {
             sendJson(res, 400, { error: 'Invalid name' });
             return;
         }
+    }
+
+    if ('quantity' in input) {
         if (!Number.isInteger(input.quantity) || input.quantity < 0) {
             sendJson(res, 400, { error: 'Invalid quantity' });
             return;
         }
-        if (products.some((p) => input.name.trim().toLowerCase() === p.name.toLowerCase())) {
-            sendJson(res, 409, { error: 'Product already exists' });
+    }
+
+    const name = 'name' in input ? input.name.trim() : null;
+    const quantity = 'quantity' in input ? input.quantity : null;
+
+    try {
+        const result = await pool.query(
+            `UPDATE products
+     SET name = COALESCE($1, name),
+         quantity = COALESCE($2, quantity)
+     WHERE id = $3
+     RETURNING id, name, quantity`,
+            [name, quantity, id],
+        );
+        if (!result.rows[0]) {
+            sendJson(res, 404, { error: 'Product not found' });
             return;
         }
 
-        const newProduct: Product = {
-            id: getNextId(),
-            name: input.name.trim(),
-            quantity: input.quantity,
-        };
-        products.push(newProduct);
-        sendJson(res, 201, newProduct);
-    });
+        sendJson(res, 200, result.rows[0]);
+    } catch (error: any) {
+        if (error.code === '23505') {
+            sendJson(res, 409, { error: 'Product already exists' });
+            return;
+        }
+        throw error;
+    }
 }
 
-export function updateProduct(req: http.IncomingMessage, res: http.ServerResponse) {
+export async function deleteProduct(req: http.IncomingMessage, res: http.ServerResponse) {
     const id = parseId(req.url ?? '/');
 
     if (id === null) {
@@ -60,61 +118,13 @@ export function updateProduct(req: http.IncomingMessage, res: http.ServerRespons
         return;
     }
 
-    const product = products.find((p) => p.id === id);
+    const result = await pool.query('DELETE FROM products WHERE id = $1', [id]);
 
-    if (!product) {
+    if (result.rowCount === 0) {
         sendJson(res, 404, { error: 'Product not found' });
         return;
     }
 
-    readJsonBody(req, res, (input) => {
-        const newProduct: Product = { ...product };
-
-        if ('name' in input) {
-            if (typeof input.name !== 'string' || input.name.trim() === '') {
-                sendJson(res, 400, { error: 'Invalid name' });
-                return;
-            }
-            if (
-                products.some((p) => {
-                    return input.name.trim().toLowerCase() === p.name.toLowerCase() && p.id !== id;
-                })
-            ) {
-                sendJson(res, 409, { error: 'Product already exists' });
-                return;
-            }
-            newProduct.name = input.name.trim();
-        }
-
-        if ('quantity' in input) {
-            if (!Number.isInteger(input.quantity) || input.quantity < 0) {
-                sendJson(res, 400, { error: 'Invalid quantity' });
-                return;
-            }
-            newProduct.quantity = input.quantity;
-        }
-
-        const index = products.findIndex((p) => p.id === id);
-        products[index] = newProduct;
-        sendJson(res, 200, newProduct);
-    });
-}
-
-export function deleteProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    const id = parseId(req.url ?? '/');
-
-    if (id === null) {
-        sendJson(res, 400, { error: 'Invalid id' });
-        return;
-    }
-
-    const index = products.findIndex((p) => id === p.id);
-
-    if (index === -1) {
-        sendJson(res, 404, { error: 'Product not found' });
-        return;
-    }
-    products.splice(index, 1);
     res.writeHead(204);
     res.end();
 }
