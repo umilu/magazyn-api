@@ -1,41 +1,43 @@
-import { parseId, readJsonBody, sendJson } from './http-utils.ts';
-import http from 'node:http';
+import { parseId } from './http-utils.ts';
+import type { Request, Response } from 'express';
 import { pool } from './db.ts';
 
-export async function getProducts(req: http.IncomingMessage, res: http.ServerResponse) {
+export async function getProducts(req: Request, res: Response) {
     const result = await pool.query('SELECT id, name, quantity FROM products ORDER BY id');
-    sendJson(res, 200, result.rows);
+    res.json(result.rows);
 }
 
-export async function getProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    const id = parseId(req.url ?? '/');
+export async function getProduct(req: Request, res: Response) {
+    const id = parseId(req.params.id);
 
     if (id === null) {
-        sendJson(res, 400, { error: 'Invalid id' });
+        res.status(400).json({ error: 'Invalid id' });
         return;
     }
 
     const result = await pool.query('SELECT id, name, quantity FROM products WHERE id = $1', [id]);
 
     if (result.rows[0]) {
-        sendJson(res, 200, result.rows[0]);
+        res.json(result.rows[0]);
         return;
     }
 
-    sendJson(res, 404, { error: 'Product not found' });
+    res.status(404).json({ error: 'Product not found' });
 }
 
-export async function createProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    const input = await readJsonBody(req, res);
-    if (input === null) {
+export async function createProduct(req: Request, res: Response) {
+    const input = req.body;
+    if (typeof input !== 'object' || input === null) {
+        res.status(400).json({ error: 'Body must be an object' });
         return;
     }
+
     if (typeof input.name !== 'string' || input.name.trim() === '') {
-        sendJson(res, 400, { error: 'Invalid name' });
+        res.status(400).json({ error: 'Invalid name' });
         return;
     }
     if (!Number.isInteger(input.quantity) || input.quantity < 0) {
-        sendJson(res, 400, { error: 'Invalid quantity' });
+        res.status(400).json({ error: 'Invalid quantity' });
         return;
     }
 
@@ -45,40 +47,41 @@ export async function createProduct(req: http.IncomingMessage, res: http.ServerR
             [input.name.trim(), input.quantity],
         );
 
-        sendJson(res, 201, result.rows[0]);
+        res.status(201).json(result.rows[0]);
     } catch (error: any) {
         if (error.code === '23505') {
-            sendJson(res, 409, { error: 'Product already exists' });
+            res.status(409).json({ error: 'Product already exists' });
             return;
         }
         throw error;
     }
 }
 
-export async function updateProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    const id = parseId(req.url ?? '/');
+export async function updateProduct(req: Request, res: Response) {
+    const id = parseId(req.params.id);
+    const input = req.body;
 
     if (id === null) {
-        sendJson(res, 400, { error: 'Invalid id' });
+        res.status(400).json({ error: 'Invalid id' });
         return;
     }
 
-    const input = await readJsonBody(req, res);
-
-    if (input === null) {
+    if (typeof input !== 'object' || input === null) {
+        res.status(400).json({ error: 'Body must be an object' });
         return;
     }
 
     if ('name' in input) {
         if (typeof input.name !== 'string' || input.name.trim() === '') {
-            sendJson(res, 400, { error: 'Invalid name' });
+            res.status(400).json({ error: 'Invalid name' });
+
             return;
         }
     }
 
     if ('quantity' in input) {
         if (!Number.isInteger(input.quantity) || input.quantity < 0) {
-            sendJson(res, 400, { error: 'Invalid quantity' });
+            res.status(400).json({ error: 'Invalid quantity' });
             return;
         }
     }
@@ -96,35 +99,34 @@ export async function updateProduct(req: http.IncomingMessage, res: http.ServerR
             [name, quantity, id],
         );
         if (!result.rows[0]) {
-            sendJson(res, 404, { error: 'Product not found' });
+            res.status(404).json({ error: 'Product not found' });
             return;
         }
 
-        sendJson(res, 200, result.rows[0]);
+        res.json(result.rows[0]);
     } catch (error: any) {
         if (error.code === '23505') {
-            sendJson(res, 409, { error: 'Product already exists' });
+            res.status(409).json({ error: 'Product already exists' });
             return;
         }
         throw error;
     }
 }
 
-export async function deleteProduct(req: http.IncomingMessage, res: http.ServerResponse) {
-    const id = parseId(req.url ?? '/');
+export async function deleteProduct(req: Request, res: Response) {
+    const id = parseId(req.params.id);
 
     if (id === null) {
-        sendJson(res, 400, { error: 'Invalid id' });
+        res.status(400).json({ error: 'Invalid id' });
         return;
     }
 
     const result = await pool.query('DELETE FROM products WHERE id = $1', [id]);
 
     if (result.rowCount === 0) {
-        sendJson(res, 404, { error: 'Product not found' });
+        res.status(404).json({ error: 'Product not found' });
         return;
     }
 
-    res.writeHead(204);
-    res.end();
+    res.status(204).end();
 }

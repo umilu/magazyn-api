@@ -1,38 +1,36 @@
-import http from 'node:http';
-import { sendJson } from './http-utils.ts';
 import {
-    createProduct,
-    deleteProduct,
-    getProduct,
     getProducts,
+    getProduct,
+    createProduct,
     updateProduct,
+    deleteProduct,
 } from './products-routes.ts';
-import { matchPath, type Route } from './router.ts';
+import type { ErrorRequestHandler } from 'express';
+import express from 'express';
 
-const routes: Route[] = [
-    { method: 'GET', path: '/products', handler: getProducts },
-    { method: 'GET', path: '/products/:id', handler: getProduct },
-    { method: 'POST', path: '/products', handler: createProduct },
-    { method: 'PATCH', path: '/products/:id', handler: updateProduct },
-    { method: 'DELETE', path: '/products/:id', handler: deleteProduct },
-];
+const app = express();
 
-const server = http.createServer(async (req, res) => {
-    const route = routes.find((r) => r.method === req.method && matchPath(r.path, req.url ?? ''));
+app.use(express.json());
+app.post('/products', createProduct);
+app.get('/products', getProducts);
+app.get('/products/:id', getProduct);
+app.patch('/products/:id', updateProduct);
+app.delete('/products/:id', deleteProduct);
 
-    if (route) {
-        try {
-            await route.handler(req, res);
-        } catch (error) {
-            console.error(error);
-            sendJson(res, 500, { error: 'Internal server error' });
-        }
-        return;
-    }
-
-    sendJson(res, 404, { error: 'Not found' });
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
 });
 
-server.listen(4000, 'localhost', () => {
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+    if (err.type === 'entity.parse.failed') {
+        res.status(400).json({ error: 'Invalid JSON' });
+        return;
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+};
+app.use(errorHandler);
+
+app.listen(4000, 'localhost', () => {
     console.log('Server running at http://localhost:4000/');
 });
